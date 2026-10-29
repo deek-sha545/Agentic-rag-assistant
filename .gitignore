@@ -23,7 +23,6 @@ models/
 *.safetensors
 *.onnx
 logs/
-results/raw/
 
 # Editors / OS
 .vscode/
