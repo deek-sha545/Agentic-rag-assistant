@@ -71,7 +71,7 @@ If you are new to the code, read the ⭐ **core files** first, in the order give
 Wikipedia API ──download_data.py──▶ data/raw/<article>.json  {title, url, revision_id, text}
 data/poisoned/*.md ─┐
                     ▼
-documents.load_directory()  ─▶ 980 Sections  (title, "Moons > Inner moons", text, url)
+documents.load_directory()  ─▶ 980 Sections (972 real + 8 poisoned): (title, "Moons > Inner moons", text, url)
 chunking.chunk_sections()   ─▶ ~4,500 Chunks of ≤500 chars, 75-char overlap
 guardrails.is_suspicious()  ─▶ metadata.suspicious = True for 4 poisoned chunks
 vector_store.add_chunks()   ─▶ embed "Title - Section\ntext" (384-dim, normalised)
