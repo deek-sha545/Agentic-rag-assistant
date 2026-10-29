@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+# Main configuration for the Agentic RAG Research Assistant.
+# Every value here can be overridden by an environment variable of the same
+# name in UPPER_CASE with an "RAG_" prefix, e.g. RAG_LLM_PROVIDER=gemini.
+# ---------------------------------------------------------------------------
+
+# --- LLM used by the agent ---------------------------------------------------
+llm_provider: groq                 # groq | gemini | openai | ollama
+llm_model: llama-3.3-70b-versatile
+llm_temperature: 0.0               # 0 = as deterministic as possible
+
+# --- LLM used as the judge during evaluation (kept fixed across experiments) -
+judge_provider: groq
+judge_model: openai/gpt-oss-120b
+
+# --- Embeddings & vector store -----------------------------------------------
+embedding_model: sentence-transformers/all-MiniLM-L6-v2
+chroma_dir: chroma_db              # folder for the persistent ChromaDB store
+chunk_size: 1000                   # characters per chunk
+chunk_overlap: 150                 # characters shared by neighbouring chunks
+
+# --- Agent behaviour ---------------------------------------------------------
+top_k: 5                           # passages retrieved per search
+max_retries: 2                     # max query rewrites before giving up
+use_rewrite_loop: true             # false = plain "retrieve once" RAG
+check_grounding: true              # verify the answer against the passages
+sanitize_injections: true          # redact instruction-like text in passages
+memory_turns: 3                    # previous Q/A pairs remembered per session
+
+# --- Paths -------------------------------------------------------------------
+raw_data_dir: data/raw             # downloaded Wikipedia articles
+poisoned_data_dir: data/poisoned   # prompt-injection test documents
+log_dir: logs                      # per-question JSONL traces
+cache_dir: .cache/llm              # on-disk LLM response cache (for evals)
+use_llm_cache: false               # the eval script switches this on
+
+# --- Prices in US$ per 1M tokens (input, output), used for cost logging -----
+# Check your provider's pricing page; these are list prices at time of writing.
+prices:
+  llama-3.3-70b-versatile: [0.59, 0.79]
+  llama-3.1-8b-instant: [0.05, 0.08]
+  openai/gpt-oss-120b: [0.15, 0.75]
+  openai/gpt-oss-20b: [0.10, 0.50]
+  gemini-2.0-flash: [0.10, 0.40]
+  gpt-4o-mini: [0.15, 0.60]

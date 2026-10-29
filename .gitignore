@@ -1,0 +1,32 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Working notes (local only)
+PROGRESS.md
+
+# Large / generated data
+data/raw/
+data/processed/
+chroma_db/
+vector_store/
+models/
+*.bin
+*.safetensors
+*.onnx
+logs/
+results/raw/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+.cache/

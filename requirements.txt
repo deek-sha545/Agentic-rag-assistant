@@ -1,0 +1,29 @@
+# --- Agent / LLM ---
+langgraph>=0.2
+langchain-core>=0.3
+langchain-groq>=0.2          # default provider (Groq)
+langchain-google-genai>=2.0  # optional: Gemini
+langchain-openai>=0.2        # optional: OpenAI
+langchain-ollama>=0.2        # optional: local Ollama models
+
+# --- Retrieval ---
+chromadb>=0.5
+sentence-transformers>=3.0
+# torch is installed from the CPU-only index (see README) to keep the venv small
+
+# --- App ---
+fastapi>=0.110
+uvicorn>=0.29
+streamlit>=1.35
+requests>=2.31
+
+# --- Utilities ---
+python-dotenv>=1.0
+pyyaml>=6.0
+pandas>=2.0
+matplotlib>=3.8
+tabulate>=0.9               # pandas.to_markdown()
+
+# --- Tests ---
+pytest>=8.0
+httpx>=0.27                 # used by FastAPI's TestClient
