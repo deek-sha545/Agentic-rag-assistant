@@ -46,8 +46,11 @@ INJECTION_PATTERNS = [
 ]
 _COMPILED = [re.compile(p, re.IGNORECASE | re.MULTILINE) for p in INJECTION_PATTERNS]
 
-# Sentence splitter used for redaction (same idea as in chunking.py).
-_SENTENCES = re.compile(r"(?<=[.!?])\s+|\n+")
+# Sentence splitter used for redaction: split after . ! ? or at a blank line.
+# (A single line break is NOT a sentence end: an attack sentence wrapped over
+# two lines must be redacted as a whole.)
+_SENTENCES = re.compile(r"(?<=[.!?])\s+|\n\s*\n")
+_SINGLE_NEWLINE = re.compile(r"(?<!\n)\n(?!\n)")
 URL = re.compile(r"https?://[^\s)\]>\"']+")
 
 
@@ -65,6 +68,7 @@ def is_suspicious(text: str) -> bool:
 
 def sanitize(text: str) -> tuple[str, bool]:
     """Redact instruction-like sentences. Returns (clean_text, was_changed)."""
+    text = _SINGLE_NEWLINE.sub(" ", text)
     cleaned = HTML_COMMENT.sub(REDACTION, text)
     kept: list[str] = []
     for sentence in _SENTENCES.split(cleaned):
