@@ -39,11 +39,11 @@ class Settings:
     # Retrieval
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     chroma_dir: str = "chroma_db"
-    chunk_size: int = 1000
-    chunk_overlap: int = 150
+    chunk_size: int = 500
+    chunk_overlap: int = 75
 
     # Agent behaviour
-    top_k: int = 5
+    top_k: int = 8
     max_retries: int = 2
     use_rewrite_loop: bool = True
     check_grounding: bool = True

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def ingest(settings: Settings, chunk_size: int | None = None, reset: bool = True) -> dict:
     """Build (or rebuild) the vector store for one chunk size. Returns statistics."""
     chunk_size = chunk_size or settings.chunk_size
-    # Keep the overlap at the same *proportion* of the chunk (150/1000 = 15%).
+    # Keep the overlap at the same *proportion* of the chunk (75/500 = 15%).
     overlap = round(settings.chunk_overlap * chunk_size / settings.chunk_size)
     started = time.perf_counter()
 

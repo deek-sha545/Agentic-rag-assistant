@@ -20,6 +20,6 @@ def test_env_override(monkeypatch):
 
 def test_with_overrides_returns_copy():
     base = Settings()
-    changed = base.with_overrides(chunk_size=500)
-    assert changed.chunk_size == 500
-    assert base.chunk_size == 1000
+    changed = base.with_overrides(chunk_size=2000)
+    assert changed.chunk_size == 2000
+    assert base.chunk_size == 500

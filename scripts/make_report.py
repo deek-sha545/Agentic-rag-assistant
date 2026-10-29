@@ -57,11 +57,14 @@ def retrieval_charts() -> None:
     if not path.exists():
         return
     table = pd.read_csv(path)
-    at5 = table[table["k"] == 5]
-    labels = [f"{s} chars" for s in at5["chunk_size"]]
-    bar_chart(labels, at5["evidence_hit@k"], "Answer passage retrieved (top 5)",
-              "evidence hit@5", CHARTS / "retrieval_evidence_hit.png")
-    bar_chart(labels, at5["context_chars"] / 1000, "Context sent to the LLM per search (top 5)",
+    # Compare chunk sizes at about the same context budget (~3-4k characters):
+    # many small chunks vs a few big ones.
+    budget = [(500, 8), (1000, 5), (2000, 3)]
+    rows = pd.concat([table[(table.chunk_size == s) & (table.k == k)] for s, k in budget])
+    labels = [f"{s} chars × top {k}" for s, k in budget]
+    bar_chart(labels, rows["evidence_hit@k"], "Answer passage retrieved, similar context budget",
+              "evidence hit", CHARTS / "retrieval_evidence_hit.png")
+    bar_chart(labels, rows["context_chars"] / 1000, "Context sent to the LLM per search",
               "thousand characters", CHARTS / "retrieval_context_size.png", percent=False)
 
 

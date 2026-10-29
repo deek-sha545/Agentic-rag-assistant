@@ -27,7 +27,7 @@ from rag_assistant.evaluation import load_questions  # noqa: E402
 from rag_assistant.vector_store import VectorStore  # noqa: E402
 
 CHUNK_SIZES = [500, 1000, 2000]
-K_VALUES = [3, 5, 8]
+K_VALUES = [3, 5, 8, 10]
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 POISONED_TITLES = {"Mars Survey Notes", "Jupiter Fact Sheet", "Saturn Mission Brief",
                    "Pluto Reclassification Summary"}

@@ -16,11 +16,11 @@ judge_model: openai/gpt-oss-120b
 # --- Embeddings & vector store -----------------------------------------------
 embedding_model: sentence-transformers/all-MiniLM-L6-v2
 chroma_dir: chroma_db              # folder for the persistent ChromaDB store
-chunk_size: 1000                   # characters per chunk
-chunk_overlap: 150                 # characters shared by neighbouring chunks
+chunk_size: 500                    # characters per chunk (see docs/DECISIONS.md)
+chunk_overlap: 75                  # characters shared by neighbouring chunks (15%)
 
 # --- Agent behaviour ---------------------------------------------------------
-top_k: 5                           # passages retrieved per search
+top_k: 8                           # passages retrieved per search
 max_retries: 2                     # max query rewrites before giving up
 use_rewrite_loop: true             # false = plain "retrieve once" RAG
 check_grounding: true              # verify the answer against the passages

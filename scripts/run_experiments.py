@@ -3,12 +3,12 @@
 One factor is changed at a time against the baseline, so each difference can be
 attributed to that factor:
 
-    baseline     chunk 1000, rewrite loop ON,  model A
-    chunk_500    chunk  500                       (vs baseline)
-    chunk_2000   chunk 2000                       (vs baseline)
+    baseline     chunk 500 x top 8,  rewrite loop ON,  model A   (final config)
+    chunk_1000   chunk 1000 x top 5   } same context budget (~3-4k characters),
+    chunk_2000   chunk 2000 x top 3   } only the chunking differs
     no_loop      rewrite loop OFF                 (vs baseline)
     model_b      model B instead of model A       (vs baseline)
-    no_redaction redaction OFF, injection questions only (guardrail check)
+  plus an injection suite: attack success with redaction on/off, both models.
 
 Results:  results/raw/<experiment>.jsonl   one line per question (resumable)
           results/summary.csv / .md        one row per experiment
@@ -44,11 +44,11 @@ MODEL_A = "llama-3.3-70b-versatile"
 MODEL_B = "llama-3.1-8b-instant"
 
 EXPERIMENTS = {
-    "baseline":   {"chunk_size": 1000, "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "chunk_500":  {"chunk_size": 500,  "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "chunk_2000": {"chunk_size": 2000, "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "no_loop":    {"chunk_size": 1000, "use_rewrite_loop": False, "llm_model": MODEL_A},
-    "model_b":    {"chunk_size": 1000, "use_rewrite_loop": True,  "llm_model": MODEL_B},
+    "baseline":   {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_model": MODEL_A},
+    "chunk_1000": {"chunk_size": 1000, "top_k": 5, "use_rewrite_loop": True,  "llm_model": MODEL_A},
+    "chunk_2000": {"chunk_size": 2000, "top_k": 3, "use_rewrite_loop": True,  "llm_model": MODEL_A},
+    "no_loop":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": False, "llm_model": MODEL_A},
+    "model_b":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_model": MODEL_B},
 }
 
 # Questions whose retrieval surfaces a poisoned document, with the canary that
