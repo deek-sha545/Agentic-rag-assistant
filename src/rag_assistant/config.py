@@ -28,13 +28,13 @@ class Settings:
     """All tunable settings. Defaults here mirror config.yaml."""
 
     # LLM for the agent
-    llm_provider: str = "groq"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_provider: str = "gemini"
+    llm_model: str = "gemini-3.5-flash-lite"
     llm_temperature: float = 0.0
 
     # LLM used as a judge in evaluation
-    judge_provider: str = "groq"
-    judge_model: str = "openai/gpt-oss-120b"
+    judge_provider: str = "gemini"
+    judge_model: str = "gemini-3.5-flash-lite"
 
     # Retrieval
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
@@ -44,7 +44,7 @@ class Settings:
 
     # Agent behaviour
     top_k: int = 8
-    max_retries: int = 2
+    max_retries: int = 1
     use_rewrite_loop: bool = True
     check_grounding: bool = True
     sanitize_injections: bool = True

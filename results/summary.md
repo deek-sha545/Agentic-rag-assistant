@@ -1,0 +1,17 @@
+# End-to-end experiments (44 questions)
+
+| experiment   |   questions |   answer_accuracy |   correct_refusal_rate |   false_refusal_rate |   hallucination_rate |   citation_hit_rate |   citation_precision |   retrieval_recall |   avg_retries |   avg_llm_calls |   latency_mean_s |   latency_p95_s |   avg_tokens |   cost_per_question_usd |
+|:-------------|------------:|------------------:|-----------------------:|---------------------:|---------------------:|--------------------:|---------------------:|-------------------:|--------------:|----------------:|-----------------:|----------------:|-------------:|------------------------:|
+| baseline     |          44 |             0.944 |                      1 |                0.028 |                0.023 |               0.971 |                0.857 |              0.972 |         0.364 |           3.341 |           10.456 |           38.15 |      2481.86 |                0.000852 |
+| chunk_1000   |          20 |             1     |                    nan |                0     |                0     |               0.95  |                0.867 |              0.95  |         0.05  |           3.1   |           13.151 |           57.77 |      2716.75 |                0.000927 |
+| model_b      |          44 |             0.958 |                      1 |                0     |                0.023 |               0.972 |                0.84  |              0.972 |         0.318 |           3.295 |           16.831 |           72.32 |      2473.3  |                0.000676 |
+| no_loop      |          44 |             0.944 |                      1 |                0.028 |                0.023 |               0.971 |                0.838 |              0.972 |         0     |           2.614 |           11.706 |           69.11 |      2039.14 |                0.000708 |
+
+## chunk_1000 (stopped after 20 of 44 questions)
+
+Compared with the baseline on exactly the same questions:
+
+|                           |   questions |   answer_accuracy |   correct_refusal_rate |   false_refusal_rate |   hallucination_rate |   citation_hit_rate |   citation_precision |   retrieval_recall |   avg_retries |   avg_llm_calls |   latency_mean_s |   latency_p95_s |   avg_tokens |   cost_per_question_usd |
+|:--------------------------|------------:|------------------:|-----------------------:|---------------------:|---------------------:|--------------------:|---------------------:|-------------------:|--------------:|----------------:|-----------------:|----------------:|-------------:|------------------------:|
+| chunk_1000                |          20 |               1   |                    nan |                 0    |                 0    |                0.95 |                0.867 |               0.95 |          0.05 |            3.1  |           13.151 |           57.77 |      2716.75 |                0.000927 |
+| baseline (same questions) |          20 |               0.9 |                    nan |                 0.05 |                 0.05 |                1    |                0.895 |               1    |          0    |            2.95 |            8.958 |           36.33 |      2144.45 |                0.000741 |

@@ -2,13 +2,15 @@
 
 Reads whatever exists:
   results/retrieval_chunk_sizes.csv  (scripts/eval_retrieval.py)
-  results/summary.csv                (scripts/run_experiments.py)
+  results/raw/*.jsonl                (scripts/run_experiments.py)
 
 One metric per chart (no double axes), single colour, values written on bars.
 """
 
 from __future__ import annotations
 
+import json
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -16,6 +18,9 @@ import matplotlib
 matplotlib.use("Agg")   # draw to files, no window
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from rag_assistant.evaluation import load_questions, summarize  # noqa: E402
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 CHARTS = RESULTS / "charts"
@@ -68,25 +73,56 @@ def retrieval_charts() -> None:
               "thousand characters", CHARTS / "retrieval_context_size.png", percent=False)
 
 
-def experiment_charts() -> None:
-    path = RESULTS / "summary.csv"
-    if not path.exists():
-        return
-    table = pd.read_csv(path).set_index("experiment")
+COLUMNS = ["questions", "answer_accuracy", "correct_refusal_rate", "false_refusal_rate",
+           "hallucination_rate", "citation_hit_rate", "citation_precision", "retrieval_recall",
+           "avg_retries", "avg_llm_calls", "latency_mean_s", "latency_p95_s", "avg_tokens",
+           "cost_per_question_usd"]
+
+
+def experiment_tables() -> pd.DataFrame | None:
+    """Rebuild the summary from the per-question files (the source of truth).
+
+    An experiment that stopped early (e.g. daily API quota) is still listed, and
+    additionally compared with the baseline on exactly the same questions.
+    """
+    files = sorted((RESULTS / "raw").glob("*.jsonl"))
+    if not files:
+        return None
+    records = {f.stem: [json.loads(line) for line in f.read_text().splitlines()] for f in files}
+    total = len(load_questions())
+    rows = {name: summarize(recs) for name, recs in records.items()}
+    table = pd.DataFrame(rows).T[COLUMNS].rename_axis("experiment")
+    table.to_csv(RESULTS / "summary.csv")
+    text = f"# End-to-end experiments ({total} questions)\n\n" + table.to_markdown() + "\n"
+
+    baseline = {r["id"]: r for r in records.get("baseline", [])}
+    for name, recs in records.items():
+        if name != "baseline" and len(recs) < total and baseline:
+            same = [baseline[r["id"]] for r in recs if r["id"] in baseline]
+            paired = pd.DataFrame({name: summarize(recs), "baseline (same questions)": summarize(same)}).T
+            text += (f"\n## {name} (stopped after {len(recs)} of {total} questions)\n\n"
+                     "Compared with the baseline on exactly the same questions:\n\n"
+                     + paired[COLUMNS].to_markdown() + "\n")
+    (RESULTS / "summary.md").write_text(text)
+    print("wrote results/summary.md")
+    return table[table["questions"] == total]   # charts: complete experiments only
+
+
+def experiment_charts(table: pd.DataFrame) -> None:
     names = list(table.index)
-    for metric, title, percent in [
-        ("answer_accuracy", "Answer accuracy (LLM judge, answerable questions)", True),
-        ("citation_hit_rate", "Answers citing the correct document", True),
-        ("hallucination_rate", "Hallucination rate (lower is better)", True),
-        ("correct_refusal_rate", "Correct refusals on unanswerable questions", True),
-        ("latency_mean_s", "Mean latency per question (seconds)", False),
-        ("cost_per_question_usd", "Cost per question (US$)", False),
+    for metric, title, percent, scale in [
+        ("answer_accuracy", "Answer accuracy (LLM judge, answerable questions)", True, 1),
+        ("avg_llm_calls", "LLM calls per question", False, 1),
+        ("cost_per_question_usd", "Cost per 1,000 questions (US$)", False, 1000),
+        ("latency_mean_s", "Mean latency per question (s, incl. rate-limit waits)", False, 1),
     ]:
-        if metric in table:
-            bar_chart(names, table[metric].fillna(0), title, metric, CHARTS / f"exp_{metric}.png", percent)
+        bar_chart(names, table[metric].astype(float).fillna(0) * scale, title, metric,
+                  CHARTS / f"exp_{metric}.png", percent)
 
 
 if __name__ == "__main__":
     CHARTS.mkdir(parents=True, exist_ok=True)
     retrieval_charts()
-    experiment_charts()
+    complete = experiment_tables()
+    if complete is not None and not complete.empty:
+        experiment_charts(complete)

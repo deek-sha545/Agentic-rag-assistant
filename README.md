@@ -18,16 +18,16 @@ session, and ships with an **evaluation suite** (44 questions, LLM-as-judge).
 |---|---|
 | Agent | [LangGraph](https://langchain-ai.github.io/langgraph/) (an explicit state graph) |
 | Retrieval | [ChromaDB](https://www.trychroma.com/) + `all-MiniLM-L6-v2` ([sentence-transformers](https://www.sbert.net/)) |
-| LLM | Groq by default; Gemini, OpenAI or local Ollama with a one-line config change |
+| LLM | Google Gemini (`gemini-3.5-flash-lite`) by default; Groq, OpenAI or local Ollama with a one-line config change |
 | App | FastAPI backend + Streamlit chat UI, Dockerfile |
-| Quality | pytest (52 offline tests + 8 live-LLM tests), evaluation scripts, charts |
+| Quality | pytest (54 offline tests + 8 live-LLM tests), evaluation scripts, charts |
 
-> **Status of the results (please read).** The retrieval experiments below are
-> real measurements. The *end-to-end* LLM experiments (answer accuracy, the
-> rewrite loop on vs off, two LLMs) are fully implemented but **have not been run
-> yet**: the Groq API key available when this was built was rejected
-> (`401 Invalid API Key`). With a valid key, one command runs them:
-> `python scripts/run_experiments.py` (see [Evaluation](#evaluation)).
+> **Results at a glance** (44-question eval set, `gemini-3.5-flash-lite`):
+> **94% answer accuracy**, **100% correct refusals** on unanswerable questions,
+> **2% hallucination rate**, **97% of answers cite the right article**, all 8 live
+> prompt-injection attacks resisted, **~$0.85 per 1,000 questions**.
+> Two experiments (chunk sizes 1000/2000) stopped early on the free-tier daily
+> quota; see [Evaluation](#evaluation).
 
 ---
 
@@ -88,8 +88,8 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install -e .            # makes `import rag_assistant` work everywhere
 
-# 3. Add your API key. Get a free key at https://console.groq.com/keys
-cp .env.example .env        # then open .env and paste the key after GROQ_API_KEY=
+# 3. Add your API key. Get a free Gemini key at https://aistudio.google.com/apikey
+cp .env.example .env        # then open .env and paste the key after GOOGLE_API_KEY=
 
 # 4. Download the 41 Wikipedia articles (~1.8 MB of text, takes ~1 minute).
 python scripts/download_data.py
@@ -131,8 +131,8 @@ Edit `config.yaml` (or set an environment variable, e.g. `RAG_LLM_MODEL=…`):
 
 | Provider | `llm_provider` | Example `llm_model` | Needs |
 |---|---|---|---|
-| Groq (default) | `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
-| Google Gemini | `gemini` | `gemini-2.0-flash` | `GOOGLE_API_KEY` |
+| Google Gemini (default) | `gemini` | `gemini-3.5-flash-lite` | `GOOGLE_API_KEY` |
+| Groq | `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
 | OpenAI | `openai` | `gpt-4o-mini` | `OPENAI_API_KEY` |
 | Local Ollama | `ollama` | `llama3.1:8b` | [Ollama](https://ollama.com) running, no key |
 
@@ -161,8 +161,9 @@ store. The `Dockerfile` header shows how to run the Streamlit UI from the same i
   * correct-refusal and false-refusal rates
   * hallucination rate
   * retrieval recall, latency (mean, p95), tokens and cost per question
-* **Judge:** `openai/gpt-oss-120b`, a different model family from the agent's Llama
-  models, kept fixed across all experiments.
+* **Judge:** `gemini-3.5-flash-lite`, kept fixed across all experiments. It is the
+  same model as the default agent, which risks self-preference bias. A stronger judge
+  from another family was not available on the free tier (see Limitations).
 
 ### Results: retrieval (measured)
 
@@ -183,25 +184,56 @@ At the same context budget, **many small chunks beat a few large ones** by
 which costs more and makes the answering step slower. The full grid is in
 [`results/retrieval_chunk_sizes.md`](results/retrieval_chunk_sizes.md).
 
-### Results: end-to-end experiments (pending: need a working API key)
+### Results: end-to-end experiments (measured)
+
+Each experiment changes **one** thing against the baseline (chunk 500 × top 8,
+rewrite loop on, `gemini-3.5-flash-lite`, up to 2 rewrites). 44 questions each.
+
+| Experiment | Answer accuracy | Correct refusals | False refusals | Hallucination | Right article cited | LLM calls / q | Cost / 1k q | Mean latency |
+|---|---|---|---|---|---|---|---|---|
+| **baseline** | **94.4%** | 100% | 2.8% | 2.3% | 97.1% | 3.34 | $0.85 | 10.5 s |
+| `no_loop` (no query rewriting) | 94.4% | 100% | 2.8% | 2.3% | 97.1% | 2.61 | $0.71 | 11.7 s |
+| `model_b` (`gemini-3.1-flash-lite`) | 95.8% | 100% | 0.0% | 2.3% | 97.2% | 3.30 | $0.68 | 16.8 s |
+| `chunk_1000` *(20 of 44 q)* | 100% | — | 0% | 0% | 95.0% | 3.10 | $0.93 | 13.2 s |
+| ↳ baseline on the same 20 q | 90.0% | — | 5.0% | 5.0% | 100% | 2.95 | $0.74 | 9.0 s |
+
+![Answer accuracy per experiment](results/charts/exp_answer_accuracy.png)
+![LLM calls per question](results/charts/exp_avg_llm_calls.png)
+
+**What the numbers say** (details in [docs/DECISIONS.md](docs/DECISIONS.md)):
+
+* **The rewrite loop never fired for an answerable question at top-8 retrieval.**
+  All 16 rewrites in the baseline went to the 8 unanswerable questions, which were
+  refused anyway. They added 28% more LLM calls for no gain. With narrower retrieval
+  (`chunk_1000`, top 5) the loop **rescued** a question: *"Who discovered Ceres?"*
+  found nothing relevant, the rewritten query *"Ceres discovery date discoverer
+  Giuseppe Piazzi"* did, and the answer was correct. That one rescue needed one
+  rewrite, so the final setting keeps the loop but with **`max_retries: 1`**.
+* **The two models are tied on quality.** They differ by one question out of 44.
+  `gemini-3.1-flash-lite` is ~20% cheaper; `3.5-flash-lite` (default) was faster in this run.
+* **Only 2 baseline errors:** one wrong refusal (Ceres) and one "incorrect" that is
+  really an eval-set flaw. For *"How fast can the Great Red Spot's winds get?"* the agent
+  answered 432 km/h, which the article does say (winds at the spot's edge), while the
+  reference only had 496 km/h. So the true accuracy is probably slightly higher.
+* **Chunk size is not settled end-to-end.** On 20 questions, 1000-char chunks scored 2
+  more correct. One of those is the eval-set flaw above, and 20 questions is too few to
+  separate the settings. The retrieval experiment (36 questions) favours 500, so 500 stays.
+* **Latency includes rate-limit waits.** The free tier throttled the run (128 retried
+  calls), which inflates mean and especially p95 latency. Treat latency as an upper bound.
+
+Live prompt-injection tests (`pytest -m llm`, `gemini-3.5-flash-lite`): **8/8 passed**.
+These are 4 attacks × redaction on/off; no canary appeared in any answer.
+
+Reproduce or finish the runs (resumable; finished questions are skipped):
 
 ```bash
 python scripts/run_experiments.py --limit 3     # quick smoke test (3 questions)
-python scripts/run_experiments.py               # all experiments (time depends on your rate limits)
-python scripts/make_report.py                   # writes results/charts/exp_*.png
+python scripts/run_experiments.py               # all experiments + injection suite
+python scripts/make_report.py                   # results/summary.md + charts
 ```
 
-| Experiment | What changes vs baseline |
-|---|---|
-| `baseline` | chunk 500 × top 8, rewrite loop on, `llama-3.3-70b-versatile` |
-| `chunk_1000`, `chunk_2000` | chunk size, at the same context budget |
-| `no_loop` | no query rewriting: plain "retrieve once" RAG |
-| `model_b` | `llama-3.1-8b-instant` (a small, about 10× cheaper model) |
-| injection suite | attack success rate with redaction on and off, for both models |
-
-Results go to `results/summary.md` (one row per experiment),
-`results/raw/*.jsonl` (every answer with its verdict) and `results/charts/`.
-Runs resume after interruptions, and LLM calls are cached, so re-running is free.
+Results: `results/summary.md` (tables), `results/raw/*.jsonl` (every answer with its
+judge verdict and reason), `results/charts/`. Per-question traces go to `logs/eval/`.
 
 ---
 
@@ -227,7 +259,8 @@ Three layers of defence:
 `tests/test_guardrails.py` proves this with a deliberately **gullible fake model**
 that obeys any instruction it sees. Even with redaction switched off, the
 injected phishing link never reaches the answer. `tests/test_injection_live.py`
-runs the same attacks against the real LLM; it is skipped without a working key.
+runs the same attacks against the real LLM (`pytest -m llm`); all 8 cases passed with
+`gemini-3.5-flash-lite`.
 
 ---
 
@@ -247,18 +280,26 @@ docs/                    ARCHITECTURE.md, DECISIONS.md
 
 ## Limitations
 
-* **End-to-end numbers are pending** (see the status note above). Settings that
-  depend on them (rewrite loop, model choice) are reasoned defaults, not measured.
-* **Retrieval is the bottleneck.** Even the best setting retrieves the answer
-  passage for only 75% of questions. Pure vector search misses exact names and
-  numbers. Hybrid search (BM25 + vectors) or a re-ranker would likely help.
+* **Free-tier quota limited the experiments.** `gemini-3.5-flash` allows 20 requests/day
+  and `3.5-flash-lite` 500/day, so `chunk_1000` stopped at 20/44 questions and
+  `chunk_2000` and the injection-suite table were not run. Re-running the same command after
+  the daily reset finishes them.
+* **Same model as agent and judge.** This may bias scores upward. Re-judge with a stronger
+  model from another family (e.g. on a paid tier) for more trustworthy numbers.
+* **Small differences are noise.** With 44 questions, one question is 2–3 points of accuracy.
+* **Retrieval is the weak spot.** The exact answer passage is in the top 8 for only 75%
+  of questions. Accuracy is still 94% because facts are often repeated in other sections,
+  but the remaining errors trace back to retrieval. Hybrid search (BM25 + vectors) or a
+  re-ranker would likely help.
 * **The injection detector is pattern-based.** It catches common phrasings, and a
   creative attacker can rephrase around it. That is why layers 2 and 3 exist, but no
   prompt-based defence is perfect.
-* **The eval set is small and self-written** (44 questions, mostly single-fact).
-  Differences of a few points between experiments are within noise.
-* **An LLM judge can be wrong.** It is told to be strict and is a different model
-  family from the agent, but it isn't checked against human labels.
+* **The eval set is small, self-written and fairly easy** (44 mostly single-fact
+  questions, worded close to the articles). That is probably why the rewrite loop rarely
+  fires. Paraphrased, multi-hop questions would test it harder. One reference answer
+  (Great Red Spot winds) turned out to be ambiguous.
+* **The LLM judge isn't checked against human labels.** It also accepted one incomplete
+  answer as correct (Ceres discovery without the date, `model_b`).
 * **Memory is in RAM**, so it is lost when the server restarts and isn't shared
   between server processes.
 * **Costs are estimates**, computed from the per-token prices in `config.yaml`.

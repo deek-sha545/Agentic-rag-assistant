@@ -1,10 +1,10 @@
 # Design decisions
 
 Each entry lists what was chosen, the alternatives, and why. Numbers come from
-`results/` where an experiment exists. Entries marked **(provisional)** depend on
-the end-to-end LLM experiments, which could not be run at build time because
-the Groq API key was rejected (`401 Invalid API Key`). Re-run
-`python scripts/run_experiments.py` and revisit those entries.
+`results/` (end-to-end: `results/summary.md`; retrieval: `results/retrieval_chunk_sizes.md`).
+The end-to-end runs used Gemini on the free tier. Its daily quota stopped `chunk_1000` after
+20/44 questions, and `chunk_2000` and the injection-suite table were not run. Entries that
+depend on those runs say so.
 
 ---
 
@@ -50,10 +50,12 @@ the Groq API key was rejected (`401 Invalid API Key`). Re-run
   places in an article. Large chunks only win with much more context (2000 × 8 = 83% at
   10.6k chars, 3.4× the tokens of the grading and answering steps).
 * **Decision:** 500 × 8. It is the best recall per token measured. The first default was 1000 × 5.
-* **Risk / to confirm:** small chunks give the LLM less surrounding context. Every passage
-  carries its "Title › Section" header to compensate. The `chunk_1000` and `chunk_2000`
-  end-to-end experiments (same context budget) will show whether answer accuracy agrees with
-  retrieval recall.
+* **End-to-end check (partial):** on the 20 questions `chunk_1000` (1000 × 5) completed, it
+  scored 100% vs 90% for the baseline on the *same* 20 questions. That is 2 questions: one is
+  an ambiguous reference answer (Great Red Spot winds, see D19), and the other (Ceres) was
+  rescued by the rewrite loop, which fires more often with top-5 retrieval. 20 questions
+  cannot separate the settings, so the decision stays with the larger 36-question retrieval
+  experiment: **500 × 8**. *Revisit when `chunk_1000`/`chunk_2000` finish.*
 
 ### D5. Embed `"Title - Section\ntext"`, store only the text
 * **Alternatives:** embed the raw chunk.
@@ -91,12 +93,26 @@ the Groq API key was rejected (`401 Invalid API Key`). Re-run
   kept and the generator (which may refuse) decides. That fails open on recall but closed
   on answers.
 
-### D10. Rewrite only when *no* passage is relevant; `max_retries = 2` **(provisional)**
-* **Alternatives:** rewrite when fewer than N are relevant; unlimited retries; 1 or 3 retries.
-* **Why:** if anything relevant was found, answering is usually better than searching again.
-  Two rewrites bound the worst case at 3 searches and ~7 LLM calls for an unanswerable question.
-  The `no_loop` experiment measures what the loop buys (accuracy, refusals) against what it costs
-  (latency, tokens). If it buys nothing on this corpus, turning it off is a valid outcome.
+### D10. Rewrite only when *no* passage is relevant; `max_retries = 1`
+* **Alternatives:** no loop; rewrite when fewer than N are relevant; 2 or more retries.
+* **Evidence** (`baseline` vs `no_loop`, 44 questions each):
+
+  | | Accuracy | Correct refusals | LLM calls / q | Tokens / q | Cost / 1k q |
+  |---|---|---|---|---|---|
+  | loop on (2 retries) | 94.4% | 100% | 3.34 | 2,482 | $0.85 |
+  | loop off | 94.4% | 100% | 2.61 | 2,039 | $0.71 |
+
+  With top-8 retrieval the loop **never fired for an answerable question**. All 16 rewrites went
+  to the 8 unanswerable questions (2 each), which were refused anyway: +28% LLM calls for nothing.
+  In `chunk_1000` (top 5) the loop **did rescue** one question. For "Who discovered Ceres?" the
+  first search had nothing relevant; the rewrite "Ceres discovery date discoverer Giuseppe
+  Piazzi" found the passage and the answer was correct. That rescue needed **one** rewrite.
+* **Decision:** keep the loop (it is cheap insurance when retrieval misses, and the core
+  agentic behaviour) but lower `max_retries` from 2 to **1**. The second rewrite never helped in
+  any run and only cost 2 extra calls per unanswerable question. *Note:* the measured baseline
+  used 2; for answerable questions the results are identical, since none used more than 1.
+* **Caveat:** the eval questions are worded close to the articles. Harder, paraphrased
+  questions would likely make the loop fire, and help, more often.
 
 ### D11. Citations via `[n]` markers, mapped to sources in code
 * **Alternatives:** ask the LLM to write titles/URLs, or use structured (JSON) output.
@@ -151,18 +167,34 @@ the Groq API key was rejected (`401 Invalid API Key`). Re-run
   you only need the package you use. `LLMClient` adds what the project needs: retries on
   429/5xx (but not on a bad key), token and cost accounting, and a response cache.
 
-### D17. Default model `llama-3.3-70b-versatile` on Groq; second model `llama-3.1-8b-instant` **(provisional)**
-* **Why:** Groq was the requested default and is fast. The 70B model is the stronger
-  general-purpose option there; the 8B model is ~10× cheaper per token, so the `model_b`
-  experiment answers a practical question: is the expensive model needed for grounded,
-  cited answers? Choose the 8B model if its accuracy and hallucination rate are within a
-  few points of the 70B model.
+### D17. Default model `gemini-3.5-flash-lite`; compared with `gemini-3.1-flash-lite`
+* **History:** the first plan was Groq (`llama-3.3-70b-versatile`), but the Groq key was rejected.
+  On Gemini, `gemini-2.5-flash` is closed to new API keys, `gemini-3.8-flash` timed out, and
+  `gemini-3.5-flash` worked but allows only **20 requests/day** on the free tier (a full experiment
+  needs ~200). The lite models allow 500/day, so they were used.
+* **Evidence** (44 questions each):
 
-### D18. Judge `openai/gpt-oss-120b`, fixed across experiments
-* **Why:** a *different model family* from the agent's models reduces self-preference bias, and a
-  fixed judge keeps experiments comparable. The judge sees the reference answer and returns
-  correct / partially correct / incorrect. Refusals are scored by rule, without the judge.
-  For unanswerable questions, correctly rejecting a false premise counts as correct.
+  | | Accuracy | False refusals | Hallucination | Cost / 1k q | Mean latency |
+  |---|---|---|---|---|---|
+  | `gemini-3.5-flash-lite` | 94.4% | 2.8% | 2.3% | $0.85 | 10.5 s |
+  | `gemini-3.1-flash-lite` | 95.8% | 0.0% | 2.3% | $0.68 | 16.8 s |
+
+* **Decision:** keep `gemini-3.5-flash-lite`. Quality is a tie: the difference is a single
+  question, the Ceres refusal. It was faster in this run, though latency includes rate-limit
+  waits. If cost matters more than speed, `gemini-3.1-flash-lite` is a valid switch (~20% cheaper,
+  same quality on this eval set). Prices are from third-party trackers citing Google's price list;
+  verify them in `config.yaml`.
+
+### D18. Judge `gemini-3.5-flash-lite`, fixed across experiments
+* **Ideal:** a stronger judge from a *different* model family, to avoid self-preference bias.
+  The planned `openai/gpt-oss-120b` (Groq) was unavailable, and Gemini Pro models returned
+  "quota exceeded" on the free tier.
+* **Decision:** use the same model as the default agent, kept fixed for every experiment so they
+  stay comparable. The judge sees the reference answer and returns correct / partially correct /
+  incorrect. Refusals are scored by rule, without the judge. For unanswerable questions,
+  correctly rejecting a false premise counts as correct.
+* **Known weakness:** spot checks found it slightly lenient. It accepted "Ceres was discovered by
+  Giuseppe Piazzi" without the date as correct (`model_b`). Treat accuracy as an upper bound.
 
 ## Evaluation design
 
@@ -172,9 +204,16 @@ the Groq API key was rejected (`401 Invalid API Key`). Re-run
   exists, which catches typos in the eval set.
 * Experiments change one factor against the baseline, so differences can be attributed.
   The chunk-size comparison holds the context budget roughly constant (D4).
-* Runs are resumable and LLM responses are cached on disk, so a rate-limit interruption costs
-  nothing and re-running the report is free. Token counts and cost are recorded even for cached
-  calls, so experiments remain comparable.
+* Runs are resumable: finished questions are skipped, so an interruption (such as the daily
+  quota) costs nothing. Experiments run **without** the response cache, because cached answers
+  would make latency meaningless. `make_report.py` rebuilds every table from `results/raw/*.jsonl`
+  and compares a partial run with the baseline on the same questions.
+* **Eval-set flaw found by the experiments:** the reference for *"How fast can the Great Red
+  Spot's winds get?"* only says 496 km/h, but the article also gives 432 km/h (at the spot's edge).
+  All three complete runs answered 432 and were marked incorrect. It is kept unchanged for
+  comparability with the finished runs; fix it before a fresh evaluation.
+* **Latency caveat:** the free tier throttled the runs (128 retried calls), so latency, and
+  especially p95, includes back-off waits.
 * **Retrieval-only metrics** (no LLM) were measured first. They are cheap, deterministic, and
   isolate the retrieval component.
 

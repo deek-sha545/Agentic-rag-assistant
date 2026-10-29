@@ -21,7 +21,7 @@ chunk_overlap: 75                  # characters shared by neighbouring chunks (1
 
 # --- Agent behaviour ---------------------------------------------------------
 top_k: 8                           # passages retrieved per search
-max_retries: 2                     # max query rewrites before giving up
+max_retries: 1                     # max query rewrites before giving up (see DECISIONS D10)
 use_rewrite_loop: true             # false = plain "retrieve once" RAG
 check_grounding: true              # verify the answer against the passages
 sanitize_injections: true          # redact instruction-like text in passages
