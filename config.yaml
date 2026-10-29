@@ -5,13 +5,13 @@
 # ---------------------------------------------------------------------------
 
 # --- LLM used by the agent ---------------------------------------------------
-llm_provider: groq                 # groq | gemini | openai | ollama
-llm_model: llama-3.3-70b-versatile
+llm_provider: gemini               # groq | gemini | openai | ollama
+llm_model: gemini-3.5-flash-lite    # free tier: gemini-3.5-flash allows only 20 requests/day
 llm_temperature: 0.0               # 0 = as deterministic as possible
 
 # --- LLM used as the judge during evaluation (kept fixed across experiments) -
-judge_provider: groq
-judge_model: openai/gpt-oss-120b
+judge_provider: gemini
+judge_model: gemini-3.5-flash-lite
 
 # --- Embeddings & vector store -----------------------------------------------
 embedding_model: sentence-transformers/all-MiniLM-L6-v2
@@ -37,6 +37,10 @@ use_llm_cache: false               # the eval script switches this on
 # --- Prices in US$ per 1M tokens (input, output), used for cost logging -----
 # Check your provider's pricing page; these are list prices at time of writing.
 prices:
+  # Gemini prices from third-party trackers citing ai.google.dev/gemini-api/docs/pricing (verify)
+  gemini-3.5-flash: [1.50, 9.00]
+  gemini-3.5-flash-lite: [0.30, 2.50]
+  gemini-3.1-flash-lite: [0.25, 1.50]
   llama-3.3-70b-versatile: [0.59, 0.79]
   llama-3.1-8b-instant: [0.05, 0.08]
   openai/gpt-oss-120b: [0.15, 0.75]

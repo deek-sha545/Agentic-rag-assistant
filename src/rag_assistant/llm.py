@@ -21,6 +21,7 @@ import hashlib
 import json
 import logging
 import random
+import re
 import time
 from pathlib import Path
 
@@ -44,7 +45,10 @@ def make_chat_model(provider: str, model: str, temperature: float = 0.0):
         return ChatGroq(model=model, temperature=temperature, max_retries=0)
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=model, temperature=temperature)
+        # Retries are handled by LLMClient (the library's own retries can hang
+        # for minutes on a rate limit without telling us).
+        return ChatGoogleGenerativeAI(model=model, temperature=temperature,
+                                      max_retries=0, timeout=120)
     if provider == "openai":
         from langchain_openai import ChatOpenAI
         return ChatOpenAI(model=model, temperature=temperature, max_retries=0)
@@ -57,10 +61,16 @@ def make_chat_model(provider: str, model: str, temperature: float = 0.0):
 def _is_retryable(error: Exception) -> bool:
     """Rate limits and temporary server errors are worth retrying; bad keys are not."""
     text = f"{type(error).__name__} {error}".lower()
-    if any(word in text for word in ("invalid api key", "authentication", "401", "permission")):
+    # Whole-word matching: "rate" must not match inside e.g. "generateContent".
+    permanent = r"\b(invalid api key|authentication|401|permission|404|not_found|400|invalid_argument)\b"
+    if re.search(permanent, text):
         return False
-    return any(word in text for word in ("rate", "429", "503", "502", "500", "timeout",
-                                         "overloaded", "connection", "temporarily"))
+    # A *daily* quota will not come back in a few seconds: fail fast.
+    if "perday" in text or "per day" in text:
+        return False
+    temporary = (r"\b(rate limit|rate_limit|429|resource_exhausted|quota|500|502|503|504|"
+                 r"unavailable|timeout|timed out|overloaded|connection|temporarily)\b")
+    return bool(re.search(temporary, text))
 
 
 class LLMClient:
@@ -99,7 +109,9 @@ class LLMClient:
 
         messages = [SystemMessage(content=system), HumanMessage(content=user)]
         response = self._invoke_with_retries(messages)
-        text = response.content if isinstance(response.content, str) else str(response.content)
+        # Some providers (e.g. Gemini) return a list of content blocks instead of a
+        # string; `.text` joins the text blocks (and skips "thinking" blocks).
+        text = response.content if isinstance(response.content, str) else response.text
 
         # Token usage: LangChain puts it in `usage_metadata`. If a provider does
         # not report it, estimate ~4 characters per token.

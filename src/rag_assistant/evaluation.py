@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import statistics
 from pathlib import Path
 
@@ -138,7 +139,7 @@ def summarize(records: list[dict]) -> dict:
         "avg_retries": mean([r["retries"] for r in records]),
         "avg_llm_calls": mean([r["llm_calls"] for r in records]),
         "latency_mean_s": mean(latencies),
-        "latency_p95_s": round(latencies[int(0.95 * (len(latencies) - 1))], 2) if latencies else None,
+        "latency_p95_s": round(latencies[min(len(latencies) - 1, math.ceil(0.95 * len(latencies)) - 1)], 2) if latencies else None,
         "avg_tokens": mean([r["tokens"] for r in records]),
         "cost_per_question_usd": round(statistics.fmean(r["cost_usd"] for r in records), 6) if records else None,
     }
@@ -158,6 +159,7 @@ def run_experiment(name: str, settings: Settings, judge_llm: LLMClient | None,
         done = {r["id"]: r for r in map(json.loads, out_file.read_text().splitlines())}
 
     agent = ResearchAssistant(settings, memory=SessionMemory(0))   # no memory: questions are independent
+    agent.store.search("warm-up", 1)   # load the embedding model before timing starts
     with open(out_file, "a", encoding="utf-8") as f:
         for i, question in enumerate(questions, start=1):
             if question["id"] in done:

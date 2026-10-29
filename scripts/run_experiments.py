@@ -18,7 +18,7 @@ Usage:
     python scripts/run_experiments.py                    # all experiments
     python scripts/run_experiments.py --only baseline no_loop
     python scripts/run_experiments.py --limit 5          # quick smoke test
-LLM responses are cached in .cache/llm, so re-running costs nothing.
+Interrupted runs resume where they stopped (finished questions are skipped).
 """
 
 from __future__ import annotations
@@ -40,8 +40,8 @@ from rag_assistant.llm import LLMClient  # noqa: E402
 from rag_assistant.memory import SessionMemory  # noqa: E402
 
 RESULTS = ROOT / "results"
-MODEL_A = "llama-3.3-70b-versatile"
-MODEL_B = "llama-3.1-8b-instant"
+MODEL_A = "gemini-3.5-flash-lite"   # the default model in config.yaml
+MODEL_B = "gemini-3.1-flash-lite"   # previous generation of the same model line
 
 EXPERIMENTS = {
     "baseline":   {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_model": MODEL_A},
@@ -84,7 +84,9 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     logging.getLogger("rag_assistant.trace").setLevel(logging.WARNING)   # quieter
 
-    base = load_settings().with_overrides(use_llm_cache=True, log_dir="logs/eval")
+    # No response cache here: cached answers would make the latency numbers meaningless.
+    # Resuming still works: questions already in results/raw/*.jsonl are skipped.
+    base = load_settings().with_overrides(use_llm_cache=False, log_dir="logs/eval")
     judge_llm = LLMClient(base, provider=base.judge_provider, model=base.judge_model)
     questions = load_questions()[: args.limit] if args.limit else load_questions()
 

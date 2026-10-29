@@ -14,6 +14,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# Live-LLM tests cost money/quota: run them explicitly with `pytest -m llm`.
+addopts = "-m 'not llm'"
 markers = [
     "llm: tests that call a real LLM API (skipped when no valid API key is set)",
 ]

@@ -99,7 +99,7 @@ python scripts/download_data.py
 python -m rag_assistant.ingest --chunk-sizes 500 1000 2000
 
 # 6. Check everything works (no API key needed for these).
-pytest
+pytest                      # offline tests; `pytest -m llm` runs the live-LLM ones
 ```
 
 ### Use it

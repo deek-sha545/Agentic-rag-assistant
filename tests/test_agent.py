@@ -178,3 +178,16 @@ def test_extract_citation_numbers():
 def test_is_refusal():
     assert is_refusal("I could not find the answer in the documents.")
     assert not is_refusal("Mars has two moons [1].")
+
+
+def test_content_blocks_are_turned_into_text(settings):
+    """Gemini returns [{'type': 'text', 'text': ...}] instead of a plain string."""
+    from langchain_core.messages import AIMessage
+    from rag_assistant.llm import LLMClient
+
+    class BlockModel:
+        def invoke(self, messages):
+            return AIMessage(content=[{"type": "text", "text": "Hello "}, {"type": "text", "text": "there"}])
+
+    llm = LLMClient(settings, provider="fake", model="fake", chat_model=BlockModel())
+    assert llm.complete("system", "user") == "Hello there"

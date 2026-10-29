@@ -23,3 +23,11 @@ def test_with_overrides_returns_copy():
     changed = base.with_overrides(chunk_size=2000)
     assert changed.chunk_size == 2000
     assert base.chunk_size == 500
+
+
+def test_retryable_errors():
+    from rag_assistant.llm import _is_retryable
+    assert _is_retryable(Exception("429 RESOURCE_EXHAUSTED: quota exceeded"))
+    assert _is_retryable(Exception("503 UNAVAILABLE"))
+    assert not _is_retryable(Exception("Error calling model (NOT_FOUND): 404 ... generateContent"))
+    assert not _is_retryable(Exception("Error code: 401 - Invalid API Key"))
