@@ -96,6 +96,11 @@ def is_refusal(answer: str) -> bool:
     return prompts.REFUSAL.lower().rstrip(".") in answer.lower()
 
 
+def normalize_citations(answer: str) -> str:
+    """gpt-oss models cite as '【2】' (full-width brackets): turn that into '[2]'."""
+    return re.sub(r"【\s*(\d+(?:\s*,\s*\d+)*)\s*】", r"[\1]", answer)
+
+
 def extract_citation_numbers(answer: str) -> list[int]:
     """'... moons [1][3] and rings [2, 4].' -> [1, 3, 2, 4] (unique, in order)."""
     numbers: list[int] = []
@@ -224,7 +229,8 @@ class ResearchAssistant:
                                              passages=prompts.format_passages(state["relevant"]),
                                              question=state["standalone_question"],
                                              feedback=feedback),
-                state["tracer"]).strip()
+                state["tracer"])
+            answer = normalize_citations(answer).strip()
             refused = is_refusal(answer)
             step.details.update(refused=refused, chars=len(answer))
         return {"answer": answer, "refused": refused, "generation_attempts": attempt,

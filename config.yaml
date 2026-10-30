@@ -5,11 +5,12 @@
 # ---------------------------------------------------------------------------
 
 # --- LLM used by the agent ---------------------------------------------------
-llm_provider: gemini               # groq | gemini | openai | ollama
-llm_model: gemini-3.5-flash-lite    # free tier: gemini-3.5-flash allows only 20 requests/day
+llm_provider: groq                 # groq | gemini | openai | ollama
+llm_model: openai/gpt-oss-120b     # Groq; supports tool calling. Gemini option: gemini-3.5-flash-lite
 llm_temperature: 0.0               # 0 = as deterministic as possible
 
 # --- LLM used as the judge during evaluation (kept fixed across experiments) -
+# Stays on Gemini so new runs are comparable with the recorded results.
 judge_provider: gemini
 judge_model: gemini-3.5-flash-lite
 

@@ -5,7 +5,8 @@ import json
 from conftest import build_agent, task_of
 
 from rag_assistant import prompts
-from rag_assistant.agent import extract_citation_numbers, is_refusal, parse_json_reply
+from rag_assistant.agent import (extract_citation_numbers, is_refusal, normalize_citations,
+                                 parse_json_reply)
 
 
 def happy_responder(system, user):
@@ -173,6 +174,13 @@ def test_parse_json_reply_handles_code_fences_and_prose():
 
 def test_extract_citation_numbers():
     assert extract_citation_numbers("A [1][3]. B [2, 4]. C [1].") == [1, 3, 2, 4]
+
+
+def test_full_width_citations_are_normalized():
+    """gpt-oss on Groq writes 【2】 instead of [2]."""
+    answer = normalize_citations("Io has nine volcanoes【2】 and plumes【1, 3】.")
+    assert answer == "Io has nine volcanoes[2] and plumes[1, 3]."
+    assert extract_citation_numbers(answer) == [2, 1, 3]
 
 
 def test_is_refusal():

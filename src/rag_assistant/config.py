@@ -6,7 +6,8 @@ Usage:
     print(settings.llm_model)
 
 Any field can be overridden with an environment variable named
-RAG_<FIELD_NAME_IN_UPPER_CASE>, e.g. `RAG_LLM_PROVIDER=gemini`.
+RAG_<FIELD_NAME_IN_UPPER_CASE>, e.g. `RAG_LLM_PROVIDER=gemini`
+(together with `RAG_LLM_MODEL=gemini-3.5-flash-lite`).
 """
 
 from __future__ import annotations
@@ -28,8 +29,8 @@ class Settings:
     """All tunable settings. Defaults here mirror config.yaml."""
 
     # LLM for the agent
-    llm_provider: str = "gemini"
-    llm_model: str = "gemini-3.5-flash-lite"
+    llm_provider: str = "groq"
+    llm_model: str = "openai/gpt-oss-120b"
     llm_temperature: float = 0.0
 
     # LLM used as a judge in evaluation

@@ -18,11 +18,12 @@ session, and ships with an **evaluation suite** (44 questions, LLM-as-judge).
 |---|---|
 | Agent | [LangGraph](https://langchain-ai.github.io/langgraph/) (an explicit state graph) |
 | Retrieval | [ChromaDB](https://www.trychroma.com/) + `all-MiniLM-L6-v2` ([sentence-transformers](https://www.sbert.net/)) |
-| LLM | Google Gemini (`gemini-3.5-flash-lite`) by default; Groq, OpenAI or local Ollama with a one-line config change |
+| LLM | Groq (`openai/gpt-oss-120b`) by default; Google Gemini, OpenAI or local Ollama with a one-line config change |
 | App | FastAPI backend + Streamlit chat UI, Dockerfile |
 | Quality | pytest (54 offline tests + 8 live-LLM tests), evaluation scripts, charts |
 
-> **Results at a glance** (44-question eval set, `gemini-3.5-flash-lite`):
+> **Results at a glance** (44-question eval set, measured with `gemini-3.5-flash-lite`,
+> the default before the switch to Groq):
 > **94% answer accuracy**, **100% correct refusals** on unanswerable questions,
 > **2% hallucination rate**, **97% of answers cite the right article**, all 8 live
 > prompt-injection attacks resisted, **~$0.85 per 1,000 questions**.
@@ -88,8 +89,12 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -r requirements.txt
 pip install -e .            # makes `import rag_assistant` work everywhere
 
-# 3. Add your API key. Get a free Gemini key at https://aistudio.google.com/apikey
-cp .env.example .env        # then open .env and paste the key after GOOGLE_API_KEY=
+# 3. Add your API key. The default LLM runs on Groq: create a free key at
+#    https://console.groq.com/keys (sign in, "Create API Key", copy it once).
+cp .env.example .env        # then open .env and paste the key after GROQ_API_KEY=
+#    .env is git-ignored; never commit it. The app reads it on start-up.
+#    Using Gemini instead? Put GOOGLE_API_KEY=... in .env and see "Switch the LLM".
+#    The evaluation judge uses Gemini, so running the evals needs GOOGLE_API_KEY too.
 
 # 4. Download the 41 Wikipedia articles (~1.8 MB of text, takes ~1 minute).
 python scripts/download_data.py
@@ -127,12 +132,13 @@ appended to `logs/traces.jsonl`.
 
 ### Switch the LLM
 
-Edit `config.yaml` (or set an environment variable, e.g. `RAG_LLM_MODEL=…`):
+Edit `config.yaml`, or set environment variables for one run, e.g.
+`RAG_LLM_PROVIDER=gemini RAG_LLM_MODEL=gemini-3.5-flash-lite python scripts/ask.py "…"`:
 
 | Provider | `llm_provider` | Example `llm_model` | Needs |
 |---|---|---|---|
-| Google Gemini (default) | `gemini` | `gemini-3.5-flash-lite` | `GOOGLE_API_KEY` |
-| Groq | `groq` | `llama-3.3-70b-versatile` | `GROQ_API_KEY` |
+| Groq (default) | `groq` | `openai/gpt-oss-120b` (or `qwen/qwen3.8-27b`) | `GROQ_API_KEY` |
+| Google Gemini | `gemini` | `gemini-3.5-flash-lite` | `GOOGLE_API_KEY` |
 | OpenAI | `openai` | `gpt-4o-mini` | `OPENAI_API_KEY` |
 | Local Ollama | `ollama` | `llama3.1:8b` | [Ollama](https://ollama.com) running, no key |
 
