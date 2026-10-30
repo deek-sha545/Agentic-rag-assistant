@@ -97,8 +97,9 @@ def is_refusal(answer: str) -> bool:
 
 
 def normalize_citations(answer: str) -> str:
-    """gpt-oss models cite as '【2】' (full-width brackets): turn that into '[2]'."""
-    return re.sub(r"【\s*(\d+(?:\s*,\s*\d+)*)\s*】", r"[\1]", answer)
+    """gpt-oss models cite as '【2】' or, in their browsing-tool style, '【2†L1-L5】'
+    (also with square brackets): turn all of these into '[2]'."""
+    return re.sub(r"[【\[]\s*(\d+(?:\s*,\s*\d+)*)\s*(?:†[^】\]]*)?[】\]]", r"[\1]", answer)
 
 
 def extract_citation_numbers(answer: str) -> list[int]:

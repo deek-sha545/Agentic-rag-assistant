@@ -181,6 +181,9 @@ def test_full_width_citations_are_normalized():
     answer = normalize_citations("Io has nine volcanoes【2】 and plumes【1, 3】.")
     assert answer == "Io has nine volcanoes[2] and plumes[1, 3]."
     assert extract_citation_numbers(answer) == [2, 1, 3]
+    # Its browsing-tool style: 【n†L1-L2】, sometimes with square brackets.
+    answer = normalize_citations("Found by Herschel【1†L1-L2】【2†L3-L4】 in 1789 [3†source].")
+    assert answer == "Found by Herschel[1][2] in 1789 [3]."
 
 
 def test_is_refusal():
