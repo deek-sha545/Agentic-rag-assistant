@@ -1,5 +1,9 @@
 # 🪐 Agentic RAG Research Assistant
 
+**▶ Live demo: [agentic-ragassistant.streamlit.app](https://agentic-ragassistant.streamlit.app)**
+(hosted on Streamlit Community Cloud; the first visit after a sleep takes ~2 minutes
+while the index is built)
+
 Ask questions about a collection of 41 Wikipedia articles on the **Solar System**.
 The assistant is an *agent* rather than a single prompt. It:
 
@@ -157,7 +161,7 @@ store. The `Dockerfile` header shows how to run the Streamlit UI from the same i
 
 ### Deploy on Streamlit Community Cloud (free)
 
-The repository is ready to deploy as is. `app/requirements.txt` holds the slim
+This is how the [live demo](https://agentic-ragassistant.streamlit.app) is hosted; the repository deploys as is. `app/requirements.txt` holds the slim
 deployment dependencies (CPU-only PyTorch), and `data/raw/` is committed, so the
 app builds its own vector store on first start.
 
