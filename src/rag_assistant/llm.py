@@ -42,7 +42,12 @@ def make_chat_model(provider: str, model: str, temperature: float = 0.0):
     provider = provider.lower()
     if provider == "groq":
         from langchain_groq import ChatGroq
-        return ChatGroq(model=model, temperature=temperature, max_retries=0)
+        extra = {}
+        if model.startswith("openai/gpt-oss"):
+            # Hidden reasoning tokens count against the free tier's daily token
+            # limit; "low" cuts them sharply and is enough for these short tasks.
+            extra["reasoning_effort"] = "low"
+        return ChatGroq(model=model, temperature=temperature, max_retries=0, **extra)
     if provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         # Retries are handled by LLMClient (the library's own retries can hang

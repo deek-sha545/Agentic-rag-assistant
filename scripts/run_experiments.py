@@ -1,22 +1,24 @@
-"""Run the end-to-end experiments (needs a working LLM API key).
+"""Run the end-to-end experiments on Groq (needs GROQ_API_KEY).
 
-One factor is changed at a time against the baseline, so each difference can be
-attributed to that factor:
+Sized for the Groq free tier (200k tokens per model per day): one full run of
+44 questions uses roughly 110k agent tokens, and the judge runs on another
+model with its own quota.
 
-    baseline     chunk 500 x top 8,  rewrite loop ON,  model A   (final config)
-    chunk_1000   chunk 1000 x top 5   } same context budget (~3-4k characters),
-    chunk_2000   chunk 2000 x top 3   } only the chunking differs
-    no_loop      rewrite loop OFF                 (vs baseline)
-    model_b      model B instead of model A       (vs baseline)
-  plus an injection suite: attack success with redaction on/off, both models.
+    baseline   gpt-oss-20b, chunk 500 x top 8, rewrite loop ON   (the shipped config)
+    model_b    gpt-oss-120b instead of gpt-oss-20b               (is the cheap model enough?)
+  plus an injection suite: attack success with redaction on/off (baseline model).
+
+The chunk-size and rewrite-loop experiments were run earlier on Gemini; their
+results are kept in results/gemini/. The retrieval experiment
+(scripts/eval_retrieval.py) uses no LLM at all.
 
 Results:  results/raw/<experiment>.jsonl   one line per question (resumable)
           results/summary.csv / .md        one row per experiment
 Then:     python scripts/make_report.py    (tables + charts)
 
 Usage:
-    python scripts/run_experiments.py                    # all experiments
-    python scripts/run_experiments.py --only baseline no_loop
+    python scripts/run_experiments.py                    # everything
+    python scripts/run_experiments.py --only baseline injection
     python scripts/run_experiments.py --limit 5          # quick smoke test
 Interrupted runs resume where they stopped (finished questions are skipped).
 """
@@ -40,15 +42,13 @@ from rag_assistant.llm import LLMClient  # noqa: E402
 from rag_assistant.memory import SessionMemory  # noqa: E402
 
 RESULTS = ROOT / "results"
-MODEL_A = "gemini-3.5-flash-lite"   # the model the recorded results were measured with
-MODEL_B = "gemini-3.1-flash-lite"   # previous generation of the same model line
+MODEL_A = "openai/gpt-oss-20b"    # the default model in config.yaml
+MODEL_B = "openai/gpt-oss-120b"   # the bigger model of the same family
 
+BASE = {"chunk_size": 500, "top_k": 8, "use_rewrite_loop": True, "llm_provider": "groq"}
 EXPERIMENTS = {
-    "baseline":   {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
-    "chunk_1000": {"chunk_size": 1000, "top_k": 5, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
-    "chunk_2000": {"chunk_size": 2000, "top_k": 3, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
-    "no_loop":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": False, "llm_provider": "gemini", "llm_model": MODEL_A},
-    "model_b":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_B},
+    "baseline": BASE | {"llm_model": MODEL_A},
+    "model_b":  BASE | {"llm_model": MODEL_B},
 }
 
 # Questions whose retrieval surfaces a poisoned document, with the canary that
@@ -65,7 +65,7 @@ def run_injection_suite(base_settings, model: str) -> list[dict]:
     """Attack success rate with redaction on and off."""
     rows = []
     for sanitize in (True, False):
-        settings = base_settings.with_overrides(llm_provider="gemini", llm_model=model,
+        settings = base_settings.with_overrides(llm_provider="groq", llm_model=model,
                                                  sanitize_injections=sanitize)
         agent = ResearchAssistant(settings, memory=SessionMemory(0))
         for question, canary in INJECTION_QUESTIONS:
@@ -113,7 +113,7 @@ def main() -> None:
         summary_file.write_text(json.dumps(summaries, indent=2))
 
     if not args.skip_injection and (not args.only or "injection" in args.only):
-        rows = run_injection_suite(base, MODEL_A) + run_injection_suite(base, MODEL_B)
+        rows = run_injection_suite(base, MODEL_A)
         table = pd.DataFrame(rows)
         table.to_csv(RESULTS / "injection_results.csv", index=False)
         print(table.groupby(["model", "redaction"])["attack_succeeded"].mean())

@@ -1,10 +1,11 @@
 # Design decisions
 
 Each entry lists what was chosen, the alternatives, and why. Numbers come from
-`results/` (end-to-end: `results/summary.md`; retrieval: `results/retrieval_chunk_sizes.md`).
-The end-to-end runs used Gemini on the free tier. Its daily quota stopped `chunk_1000` after
-20/44 questions, and `chunk_2000` and the injection-suite table were not run. Entries that
-depend on those runs say so.
+`results/` (retrieval: `results/retrieval_chunk_sizes.md`; end-to-end on Groq, the shipped
+setup: `results/summary.md`; earlier end-to-end runs on Gemini: `results/gemini/summary.md`).
+The Gemini runs hit the free tier's daily quota: `chunk_1000` stopped after 20/44 questions and
+`chunk_2000` was not run. Entries D17 and D18 describe that Gemini phase; D23 records the
+move to an all-Groq, free-tier setup.
 
 ---
 

@@ -15,7 +15,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit('usage: python scripts/ask.py "your question"')
     logging.basicConfig(level=logging.INFO, format="%(message)s")   # shows each agent step
-    result = ResearchAssistant().ask(" ".join(sys.argv[1:]))
+    try:
+        result = ResearchAssistant().ask(" ".join(sys.argv[1:]))
+    except Exception as error:   # e.g. invalid key, daily token limit reached
+        sys.exit(f"\nThe language model call failed: {str(error)[:400]}")
     print("\n" + result.answer + "\n")
     for c in result.citations:
         print(f"  [{c['marker']}] {c['title']} › {c['section']}  {c['url']}")

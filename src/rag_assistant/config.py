@@ -30,12 +30,12 @@ class Settings:
 
     # LLM for the agent
     llm_provider: str = "groq"
-    llm_model: str = "openai/gpt-oss-120b"
+    llm_model: str = "openai/gpt-oss-20b"
     llm_temperature: float = 0.0
 
     # LLM used as a judge in evaluation
-    judge_provider: str = "gemini"
-    judge_model: str = "gemini-3.5-flash-lite"
+    judge_provider: str = "groq"
+    judge_model: str = "qwen/qwen3.8-27b"
 
     # Retrieval
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"

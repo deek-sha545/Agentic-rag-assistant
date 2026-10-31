@@ -18,7 +18,7 @@ session, and ships with an **evaluation suite** (44 questions, LLM-as-judge).
 |---|---|
 | Agent | [LangGraph](https://langchain-ai.github.io/langgraph/) (an explicit state graph) |
 | Retrieval | [ChromaDB](https://www.trychroma.com/) + `all-MiniLM-L6-v2` ([sentence-transformers](https://www.sbert.net/)) |
-| LLM | Groq (`openai/gpt-oss-120b`) by default; Google Gemini, OpenAI or local Ollama with a one-line config change |
+| LLM | Groq (`openai/gpt-oss-20b`, free tier) by default; Google Gemini, OpenAI or local Ollama with a one-line config change |
 | App | FastAPI backend + Streamlit chat UI, Dockerfile |
 | Quality | pytest (54 offline tests + 8 live-LLM tests), evaluation scripts, charts |
 
@@ -93,8 +93,8 @@ pip install -e .            # makes `import rag_assistant` work everywhere
 #    https://console.groq.com/keys (sign in, "Create API Key", copy it once).
 cp .env.example .env        # then open .env and paste the key after GROQ_API_KEY=
 #    .env is git-ignored; never commit it. The app reads it on start-up.
+#    That one key is all you need: the agent, the tests and the evaluation judge all run on Groq.
 #    Using Gemini instead? Put GOOGLE_API_KEY=... in .env and see "Switch the LLM".
-#    The evaluation judge uses Gemini, so running the evals needs GOOGLE_API_KEY too.
 
 # 4. Download the 41 Wikipedia articles (~1.8 MB of text, takes ~1 minute).
 python scripts/download_data.py
@@ -140,7 +140,7 @@ Edit `config.yaml`, or set environment variables for one run, e.g.
 
 | Provider | `llm_provider` | Example `llm_model` | Needs |
 |---|---|---|---|
-| Groq (default) | `groq` | `openai/gpt-oss-120b` (or `qwen/qwen3.8-27b`) | `GROQ_API_KEY` |
+| Groq (default) | `groq` | `openai/gpt-oss-20b` (or `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`) | `GROQ_API_KEY` |
 | Google Gemini | `gemini` | `gemini-3.5-flash-lite` | `GOOGLE_API_KEY` |
 | OpenAI | `openai` | `gpt-4o-mini` | `OPENAI_API_KEY` |
 | Local Ollama | `ollama` | `llama3.1:8b` | [Ollama](https://ollama.com) running, no key |
@@ -193,9 +193,10 @@ instead of failing.
   * correct-refusal and false-refusal rates
   * hallucination rate
   * retrieval recall, latency (mean, p95), tokens and cost per question
-* **Judge:** `gemini-3.5-flash-lite`, kept fixed across all experiments. It is the
-  same model as the default agent, which risks self-preference bias. A stronger judge
-  from another family was not available on the free tier (see Limitations).
+* **Judge:** `qwen/qwen3.8-27b` on Groq, kept fixed across experiments. It is from a
+  different model family than the agent (`gpt-oss`), which avoids self-preference bias,
+  and has its own free-tier quota, so judging doesn't use up the agent's tokens.
+  (The earlier Gemini runs used `gemini-3.5-flash-lite` as both agent and judge.)
 
 ### Results: retrieval (measured)
 
@@ -229,8 +230,8 @@ rewrite loop on, `gemini-3.5-flash-lite`, up to 2 rewrites). 44 questions each.
 | `chunk_1000` *(20 of 44 q)* | 100% | — | 0% | 0% | 95.0% | 3.10 | $0.93 | 13.2 s |
 | ↳ baseline on the same 20 q | 90.0% | — | 5.0% | 5.0% | 100% | 2.95 | $0.74 | 9.0 s |
 
-![Answer accuracy per experiment](results/charts/exp_answer_accuracy.png)
-![LLM calls per question](results/charts/exp_avg_llm_calls.png)
+![Answer accuracy per experiment](results/gemini/charts/exp_answer_accuracy.png)
+![LLM calls per question](results/gemini/charts/exp_avg_llm_calls.png)
 
 **What the numbers say** (details in [docs/DECISIONS.md](docs/DECISIONS.md)):
 
@@ -317,8 +318,8 @@ docs/                    ARCHITECTURE.md, DECISIONS.md
   and `3.5-flash-lite` 500/day, so `chunk_1000` stopped at 20/44 questions and
   `chunk_2000` and the injection-suite table were not run. Re-running the same command after
   the daily reset finishes them.
-* **Same model as agent and judge.** This may bias scores upward. Re-judge with a stronger
-  model from another family (e.g. on a paid tier) for more trustworthy numbers.
+* **The Gemini runs used the same model as agent and judge**, which may bias those scores
+  upward. The Groq runs use a judge from another family.
 * **Small differences are noise.** With 44 questions, one question is 2–3 points of accuracy.
 * **Retrieval is the weak spot.** The exact answer passage is in the top 8 for only 75%
   of questions. Accuracy is still 94% because facts are often repeated in other sections,

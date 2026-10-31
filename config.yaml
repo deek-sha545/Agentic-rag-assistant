@@ -6,13 +6,15 @@
 
 # --- LLM used by the agent ---------------------------------------------------
 llm_provider: groq                 # groq | gemini | openai | ollama
-llm_model: openai/gpt-oss-120b     # Groq; supports tool calling. Gemini option: gemini-3.5-flash-lite
+llm_model: openai/gpt-oss-20b      # Groq's cheapest strong model (free tier: 200k tokens/day)
+                                   # bigger option: openai/gpt-oss-120b; Gemini: gemini-3.5-flash-lite
 llm_temperature: 0.0               # 0 = as deterministic as possible
 
 # --- LLM used as the judge during evaluation (kept fixed across experiments) -
-# Stays on Gemini so new runs are comparable with the recorded results.
-judge_provider: gemini
-judge_model: gemini-3.5-flash-lite
+# A different model family from the agent (less self-preference bias), and a
+# separate Groq daily quota, so judging does not eat into the agent's tokens.
+judge_provider: groq
+judge_model: qwen/qwen3.8-27b
 
 # --- Embeddings & vector store -----------------------------------------------
 embedding_model: sentence-transformers/all-MiniLM-L6-v2
@@ -46,5 +48,6 @@ prices:
   llama-3.1-8b-instant: [0.05, 0.08]
   openai/gpt-oss-120b: [0.15, 0.75]
   openai/gpt-oss-20b: [0.10, 0.50]
+  qwen/qwen3.8-27b: [0.29, 0.59]   # estimate (Groq qwen3-32b list price), verify on groq.com/pricing
   gemini-2.0-flash: [0.10, 0.40]
   gpt-4o-mini: [0.15, 0.60]
