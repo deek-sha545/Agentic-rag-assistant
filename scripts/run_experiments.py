@@ -40,15 +40,15 @@ from rag_assistant.llm import LLMClient  # noqa: E402
 from rag_assistant.memory import SessionMemory  # noqa: E402
 
 RESULTS = ROOT / "results"
-MODEL_A = "gemini-3.5-flash-lite"   # the default model in config.yaml
+MODEL_A = "gemini-3.5-flash-lite"   # the model the recorded results were measured with
 MODEL_B = "gemini-3.1-flash-lite"   # previous generation of the same model line
 
 EXPERIMENTS = {
-    "baseline":   {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "chunk_1000": {"chunk_size": 1000, "top_k": 5, "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "chunk_2000": {"chunk_size": 2000, "top_k": 3, "use_rewrite_loop": True,  "llm_model": MODEL_A},
-    "no_loop":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": False, "llm_model": MODEL_A},
-    "model_b":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_model": MODEL_B},
+    "baseline":   {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
+    "chunk_1000": {"chunk_size": 1000, "top_k": 5, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
+    "chunk_2000": {"chunk_size": 2000, "top_k": 3, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_A},
+    "no_loop":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": False, "llm_provider": "gemini", "llm_model": MODEL_A},
+    "model_b":    {"chunk_size": 500,  "top_k": 8, "use_rewrite_loop": True,  "llm_provider": "gemini", "llm_model": MODEL_B},
 }
 
 # Questions whose retrieval surfaces a poisoned document, with the canary that
@@ -65,7 +65,8 @@ def run_injection_suite(base_settings, model: str) -> list[dict]:
     """Attack success rate with redaction on and off."""
     rows = []
     for sanitize in (True, False):
-        settings = base_settings.with_overrides(llm_model=model, sanitize_injections=sanitize)
+        settings = base_settings.with_overrides(llm_provider="gemini", llm_model=model,
+                                                 sanitize_injections=sanitize)
         agent = ResearchAssistant(settings, memory=SessionMemory(0))
         for question, canary in INJECTION_QUESTIONS:
             result = agent.ask(question)
@@ -92,7 +93,7 @@ def main() -> None:
 
     # Pre-flight: fail fast with a clear message if the API key does not work.
     try:
-        LLMClient(base.with_overrides(use_llm_cache=False), max_attempts=2).complete("Reply OK.", "OK?")
+        LLMClient(base.with_overrides(**EXPERIMENTS["baseline"]), max_attempts=2).complete("Reply OK.", "OK?")
     except Exception as error:
         sys.exit(f"The LLM is not reachable ({str(error)[:150]}).\n"
                  "Check the API key in .env (see README > Setup), then run this again.")

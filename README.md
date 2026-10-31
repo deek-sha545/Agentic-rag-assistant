@@ -113,9 +113,12 @@ pytest                      # offline tests; `pytest -m llm` runs the live-LLM o
 # Ask a single question from the terminal (shows each agent step as it runs):
 python scripts/ask.py "How many active volcanoes does Io have?"
 
-# Or run the web app: start the API, then the UI in a second terminal.
-uvicorn rag_assistant.api:app --reload          # API docs: http://localhost:8000/docs
+# Or run the chat UI on its own (the agent runs inside Streamlit):
 streamlit run app/streamlit_app.py              # chat UI:  http://localhost:8501
+
+# Or run the REST API, and optionally point the UI at it:
+uvicorn rag_assistant.api:app --reload          # API docs: http://localhost:8000/docs
+API_URL=http://localhost:8000 streamlit run app/streamlit_app.py
 ```
 
 Example API call:
@@ -151,6 +154,29 @@ docker run --env-file .env -p 8000:8000 -v rag_chroma:/app/chroma_db rag-assista
 
 On first start the container downloads the articles and builds the vector
 store. The `Dockerfile` header shows how to run the Streamlit UI from the same image.
+
+### Deploy on Streamlit Community Cloud (free)
+
+The repository is ready to deploy as is. `app/requirements.txt` holds the slim
+deployment dependencies (CPU-only PyTorch), and `data/raw/` is committed, so the
+app builds its own vector store on first start.
+
+1. Go to [share.streamlit.io](https://share.streamlit.io), sign in with GitHub and click
+   **Create app** → **Deploy a public app from GitHub**.
+2. Repository `deek-sha545/Agentic-rag-assistant`, branch `main`,
+   main file path `app/streamlit_app.py`.
+3. Open **Advanced settings**: choose **Python 3.12**, and under **Secrets** paste
+   ```toml
+   GROQ_API_KEY = "your-groq-key"
+   ```
+4. Click **Deploy**. Installing takes a few minutes. The **first** visit then takes about
+   two more minutes while the app embeds the 4,490 chunks (peak memory ~1.1 GB, well
+   inside the free limit). After that, answers take a few seconds.
+
+The app goes to sleep after a few days without visitors and wakes up (and rebuilds
+the index) on the next visit. Everyone using the public app shares your Groq key's
+free daily token limit (~50 questions/day); when it runs out, the app says so
+instead of failing.
 
 ---
 
@@ -276,7 +302,8 @@ runs the same attacks against the real LLM (`pytest -m llm`); all 8 cases passed
 config.yaml              all settings (model, chunk size, retries, prices…)
 src/rag_assistant/       the package: agent.py, prompts.py, guardrails.py, …
 scripts/                 download data, ask from CLI, evaluations, charts
-app/streamlit_app.py     chat UI
+app/streamlit_app.py     chat UI (standalone, or a client of the API)
+app/requirements.txt     slim dependencies for Streamlit Community Cloud
 eval/questions.jsonl     the evaluation set
 data/poisoned/           prompt-injection test documents
 tests/                   pytest suite
@@ -306,6 +333,8 @@ docs/                    ARCHITECTURE.md, DECISIONS.md
   (Great Red Spot winds) turned out to be ambiguous.
 * **The LLM judge isn't checked against human labels.** It also accepted one incomplete
   answer as correct (Ceres discovery without the date, `model_b`).
+* **The hosted demo runs on a free API tier.** Groq allows 200k tokens a day per key,
+  roughly 50 questions, shared by all visitors.
 * **Memory is in RAM**, so it is lost when the server restarts and isn't shared
   between server processes.
 * **Costs are estimates**, computed from the per-token prices in `config.yaml`.
@@ -315,7 +344,7 @@ docs/                    ARCHITECTURE.md, DECISIONS.md
 
 * Articles: English Wikipedia, licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
   Each downloaded file records its source URL and revision id, and every answer
-  links back to its article. The article text is not stored in this repository;
-  `scripts/download_data.py` fetches it.
+  links back to its article. The downloaded text is committed in `data/raw/` (same
+  license) so the hosted app can build its index; `scripts/download_data.py` refreshes it.
 * Poisoned test documents: written for this project, CC0.
-* Code: MIT-style use is intended. Add a `LICENSE` file of your choice before publishing.
+* Code: [MIT](LICENSE).

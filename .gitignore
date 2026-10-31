@@ -14,7 +14,7 @@ __pycache__/
 PROGRESS.md
 
 # Large / generated data
-data/raw/
+# data/raw/ is committed (~2 MB of Wikipedia text) so the Streamlit Cloud app can build its index
 data/processed/
 chroma_db/
 vector_store/

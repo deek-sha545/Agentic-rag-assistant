@@ -46,7 +46,8 @@ If you are new to the code, read the ⭐ **core files** first, in the order give
 | `scripts/run_experiments.py` | End-to-end experiments (baseline, chunk sizes, loop off, second model, injection suite) → `results/`. |
 | `scripts/make_report.py` | Charts from the results CSVs → `results/charts/`. |
 | `scripts/docker_start.sh` | Container entry point: ingests on first run, then starts uvicorn. |
-| `app/streamlit_app.py` | Chat UI. It calls the API and shows citations plus an expandable trace (queries, steps, tokens, cost, passages). |
+| `app/streamlit_app.py` | Chat UI with citations plus an expandable trace (queries, steps, tokens, cost, passages). Runs the agent in-process by default (this is how it is hosted on Streamlit Community Cloud, building the index on first start); with `API_URL` set it calls the FastAPI backend instead. |
+| `app/requirements.txt` | Slim dependency list for Streamlit Community Cloud (CPU-only PyTorch via direct wheel links). |
 | `eval/questions.jsonl` | 44 evaluation questions with reference answers, gold documents and evidence quotes. |
 | `data/poisoned/*.md` | Four prompt-injection test documents (see the README in that folder). |
 | `data/raw/` *(git-ignored)* | The downloaded articles. |
@@ -121,7 +122,8 @@ The JSONL trace holds the same data per step plus totals, the model name, the an
 ### 4. API and UI
 
 ```
-Streamlit (8501) ──HTTP──▶ FastAPI (8000) ──▶ ResearchAssistant (one shared instance)
+Streamlit (8501) ──HTTP (if API_URL)──▶ FastAPI (8000) ──▶ ResearchAssistant (one shared instance)
+Streamlit (standalone / Community Cloud) ─────in-process──▶ ResearchAssistant (st.cache_resource)
                                                 ├─ VectorStore → chroma_db/
                                                 ├─ LLMClient   → Groq / Gemini / OpenAI / Ollama
                                                 └─ SessionMemory (RAM)

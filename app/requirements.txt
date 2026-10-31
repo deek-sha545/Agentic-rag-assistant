@@ -1,0 +1,21 @@
+# Dependencies for the Streamlit Community Cloud deployment (app/streamlit_app.py).
+# Streamlit Cloud uses this file because it sits next to the app's entry point.
+# The full development set (FastAPI, tests, other LLM providers) is in ../requirements.txt.
+
+# CPU-only PyTorch: the default PyPI build pulls in ~3 GB of CUDA libraries.
+# Direct wheel links (an extra index would make uv take other packages from it too).
+torch @ https://download.pytorch.org/whl/cpu/torch-2.15.0%2Bcpu-cp311-cp311-manylinux_2_28_x86_64.whl ; python_version == "3.11" and platform_machine == "x86_64"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.15.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl ; python_version == "3.12" and platform_machine == "x86_64"
+torch @ https://download.pytorch.org/whl/cpu/torch-2.15.0%2Bcpu-cp313-cp313-manylinux_2_28_x86_64.whl ; python_version == "3.13" and platform_machine == "x86_64"
+
+langgraph>=0.2
+langchain-core>=0.3
+langchain-groq>=0.2
+langchain-google-genai>=2.0
+chromadb>=0.5
+sentence-transformers>=3.0
+streamlit>=1.35
+requests>=2.31
+python-dotenv>=1.0
+pyyaml>=6.0
+pandas>=2.0

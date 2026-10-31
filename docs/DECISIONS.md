@@ -233,3 +233,6 @@ depend on those runs say so.
 * **Alternatives:** Streamlit calling the agent in-process.
 * **Why:** the agent (embedding model, vector store) loads once in the API and serves any client;
   the UI stays a thin presentation layer. The agent is injected with `Depends`, so API tests use the fake.
+* **Update (hosting):** Streamlit Community Cloud runs a single process, so the UI now also
+  supports the in-process mode and uses it unless `API_URL` is set. The agent is created once
+  per server with `st.cache_resource`, which keeps the "load once" property.
